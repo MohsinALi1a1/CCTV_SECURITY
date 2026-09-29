@@ -1,0 +1,16 @@
+# secrets and local data - never commit
+.env
+secrets/
+data/
+frigate/storage/
+frigate/config/*.db*
+frigate/config/.*
+frigate/config/backup_config.yaml
+frigate/config/model_cache/
+mosquitto/data/
+mosquitto/log/
+__pycache__/
+frigate/config/go2rtc_homekit.yml
+frigate/config/.exports
+*.png
+frigate/config/*.lock

@@ -1,0 +1,95 @@
+# Smart Tech AI CCTV - Docker services
+# Passwords come from the .env file (copy .env.example to .env). Never put them here.
+
+services:
+  # Turns the PC webcam into an "IP camera" (only needed for testing without real cameras).
+  rtsp-server:
+    image: bluenviron/mediamtx:latest
+    container_name: rtsp-server
+    restart: unless-stopped
+    environment:
+      - MTX_PROTOCOLS=tcp
+    ports:
+      - "8554:8554"                # rtsp://localhost:8554/pc_cam
+
+  # MQTT message broker: Frigate and the event engine talk through it.
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    restart: unless-stopped
+    environment:
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+    # Builds the password file from .env at every start, then runs the broker.
+    command: >
+      sh -c 'rm -f /mosquitto/data/passwd &&
+             mosquitto_passwd -b -c /mosquitto/data/passwd "$$MQTT_USER" "$$MQTT_PASSWORD" &&
+             chown mosquitto:mosquitto /mosquitto/data/passwd && chmod 0700 /mosquitto/data/passwd &&
+             exec mosquitto -c /mosquitto/config/mosquitto.conf'
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    ports:
+      - "1883:1883"                # for MQTT Explorer / mosquitto_sub on this PC
+
+  # Frigate NVR: detection (YOLOv9 + OpenVINO), zones, face recognition, recording.
+  frigate:
+    image: ghcr.io/blakeblackshear/frigate:0.18.0
+    container_name: frigate
+    restart: unless-stopped
+    stop_grace_period: 30s
+    shm_size: "256mb"              # enough for 1-2 cameras at 720p; raise when adding cameras
+    depends_on:
+      - mosquitto
+      - rtsp-server
+    environment:
+      - TZ=${TZ}
+      - FRIGATE_MQTT_USER=${MQTT_USER}
+      - FRIGATE_MQTT_PASSWORD=${MQTT_PASSWORD}
+      - FRIGATE_RTSP_USER=${RTSP_USER}
+      - FRIGATE_RTSP_PASSWORD=${RTSP_PASSWORD}
+    # On the Ubuntu N100 box, uncomment this so OpenVINO can use the Intel GPU:
+    # devices:
+    #   - /dev/dri/renderD128:/dev/dri/renderD128
+    volumes:
+      - ./frigate/config:/config
+      - ./frigate/storage:/media/frigate
+      - ./secrets/cameras:/run/secrets:ro       # camera logins added from the dashboard (FRIGATE_CAM_*)
+      - type: tmpfs                # keeps short-lived recording segments in RAM
+        target: /tmp/cache
+        tmpfs:
+          size: 1000000000
+    ports:
+      - "8971:8971"                # Frigate web UI (login required): https://localhost:8971
+
+  # Smart Tech event engine: zone + face rules, alerts, SQLite history, camera watchdog, dashboard.
+  smarttech-engine:
+    build: ./event_engine
+    container_name: smarttech-engine
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+      - frigate
+    environment:
+      - TZ=${TZ}
+      - MQTT_HOST=mosquitto
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - FRIGATE_URL=http://frigate:5000       # internal API, only reachable inside Docker
+      - FRIGATE_UI_URL=https://localhost:8971
+      # Mobile app (Firebase). Sync turns off by itself if the credentials file is missing.
+      - FIREBASE_ENABLED=${FIREBASE_ENABLED:-true}
+      - FIREBASE_CREDENTIALS=/secrets/firebase-service-account.json
+      - HOME_ID=${HOME_ID:-home_01}
+      - HOME_NAME=${HOME_NAME:-My Home}
+      - LAN_SUBNET=${LAN_SUBNET:-}              # suggested network for "Scan for cameras"
+    volumes:
+      - ./event_engine/config:/config:ro      # rules.yml - edit it any time
+      - ./data:/data                          # events.db + snapshots
+      - ./secrets:/secrets:ro                 # firebase-service-account.json (never share)
+      - ./secrets/cameras:/camera-secrets     # camera logins saved by "Add camera" (read by Frigate)
+    ports:
+      # Dashboard: http://localhost:8080 (this PC only). It shows live camera pictures
+      # without a login, so only change to "8080:8080" on a network you trust.
+      - "127.0.0.1:8080:8080"

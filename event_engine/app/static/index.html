@@ -1,0 +1,1143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart Tech CCTV</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5z' fill='%232563eb'/%3E%3Ccircle cx='12' cy='11' r='3' fill='white'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0b1220; --panel: #111a2e; --panel-2: #0f172a; --line: #1f2a44; --line-2: #2a3656;
+    --text: #e6ebf5; --muted: #8b97b0; --accent: #2563eb; --accent-2: #3b82f6;
+    --high: #ef4444; --high-bg: #3a1620; --medium: #f59e0b; --medium-bg: #3a2a12;
+    --low: #3b82f6; --low-bg: #142849; --info: #94a3b8; --info-bg: #1e293b;
+    --ok: #22c55e; --ok-bg: #0f2e22; --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+  button { font: inherit; color: inherit; cursor: pointer; border: 1px solid var(--line-2); background: var(--panel-2);
+           border-radius: 10px; padding: 7px 12px; display: inline-flex; align-items: center; gap: 7px; }
+  button:hover:not(:disabled) { border-color: var(--accent-2); }
+  button:disabled { opacity: .55; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { background: var(--high); border-color: var(--high); color: #fff; }
+  a { color: inherit; text-decoration: none; }
+  svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- layout ---------- */
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  .side { background: var(--panel-2); border-right: 1px solid var(--line); display: flex; flex-direction: column;
+          padding: 16px 12px; position: sticky; top: 0; height: 100vh; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; padding: 4px 8px 18px; }
+  .brand svg { width: 32px; height: 32px; }
+  .nav { display: flex; flex-direction: column; gap: 4px; }
+  .nav a { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 10px; color: var(--muted); font-size: 15px; }
+  .nav a:hover { background: var(--panel); color: var(--text); }
+  .nav a.on { background: var(--accent); color: #fff; }
+  .nav .count { margin-left: auto; background: var(--high); color: #fff; font-size: 12px; font-weight: 700;
+                border-radius: 99px; padding: 1px 8px; }
+  .nav .count:empty { display: none; }
+  .sysbox { margin-top: auto; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 12px; color: var(--muted); }
+  .sysbox b { color: var(--text); font-weight: 600; display: flex; align-items: center; gap: 7px; }
+
+  .main { min-width: 0; display: flex; flex-direction: column; }
+  .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 20px; border-bottom: 1px solid var(--line);
+         background: var(--panel-2); position: sticky; top: 0; z-index: 5; }
+  .top h1 { font-size: 17px; margin: 0 auto 0 0; font-weight: 600; }
+  .chip { font-size: 12.5px; padding: 5px 11px; border-radius: 99px; background: var(--info-bg); color: var(--info);
+          display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .chip.ok { background: var(--ok-bg); color: var(--ok); }
+  .chip.bad { background: var(--high-bg); color: var(--high); }
+  .chip.warn { background: var(--medium-bg); color: var(--medium); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+  .top button { font-size: 13px; padding: 6px 11px; }
+
+  .content { padding: 18px 20px 30px; }
+  .page { display: none; }
+  .page.on { display: block; }
+  .live-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; align-items: start; }
+  .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+  .panel-h { display: flex; align-items: center; gap: 10px; padding: 14px 16px 6px; }
+  .panel-h h2 { margin: 0; font-size: 16px; font-weight: 600; }
+  .panel-h .link { margin-left: auto; color: var(--accent-2); font-size: 13px; cursor: pointer; background: none; border: 0; padding: 0; }
+  .sec-h { display: flex; align-items: center; gap: 10px; }
+  .sec-h h2 { margin: 0 auto 0 0; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+
+  /* ---------- banner ---------- */
+  #banner { display: none; align-items: center; gap: 14px; padding: 12px 14px; border-radius: var(--radius);
+            background: linear-gradient(90deg, #e11d48, #ef4444); color: #fff; animation: pulse 1s ease-in-out 3; }
+  #banner.show { display: flex; }
+  #banner img { width: 92px; height: 60px; object-fit: cover; border-radius: 8px; background: #0003; }
+  #banner .txt { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; }
+  #banner .txt small { display: block; font-weight: 400; font-size: 13px; opacity: .9; }
+  #banner .seen { background: #fff; color: #e11d48; border: 0; font-weight: 700; }
+  #banner .x { background: none; border: 0; color: #fff; font-size: 20px; padding: 4px 8px; }
+  @keyframes pulse { 50% { filter: brightness(1.15); } }
+  #permission { display: none; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--radius);
+                background: var(--low-bg); border: 1px solid var(--line-2); }
+  #permission.show { display: flex; margin-bottom: 16px; }
+  #permission span { flex: 1; }
+
+  /* ---------- stats ---------- */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat { display: flex; align-items: center; gap: 12px; padding: 14px; cursor: pointer; text-align: left; border-radius: var(--radius); }
+  .stat .ic { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; flex: none; color: #fff; }
+  .stat b { display: block; font-size: 24px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 13px; }
+  .stat .chev { margin-left: auto; color: var(--muted); }
+  .stat.HIGH .ic { background: var(--high); } .stat.HIGH b { color: var(--high); }
+  .stat.MEDIUM .ic { background: var(--medium); } .stat.MEDIUM b { color: var(--medium); }
+  .stat.LOW .ic { background: var(--low); } .stat.LOW b { color: var(--low); }
+  .stat.INFO .ic { background: #64748b; }
+
+  /* ---------- camera grid ---------- */
+  .layout-btns { display: flex; gap: 4px; }
+  .layout-btns button { padding: 6px 8px; }
+  .layout-btns button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  select { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 10px; padding: 7px 10px; }
+  .cams { display: grid; gap: 12px; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); margin-top: 12px; }
+  .tile { position: relative; border-radius: var(--radius); overflow: hidden; background: #000; border: 2px solid var(--line);
+          cursor: pointer; display: flex; flex-direction: column; }
+  .tile.sel { border-color: var(--accent-2); }
+  .tile.alert { border-color: var(--high); box-shadow: 0 0 0 2px #ef444455; }
+  .tile .view { position: relative; aspect-ratio: 16/9; background: #000; }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .tile .tag { position: absolute; top: 8px; font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+               background: #000a; color: #fff; display: flex; align-items: center; gap: 5px; }
+  .tile .tag.r { right: 8px; } .tile .tag.l { left: 8px; background: var(--high); }
+  .tile .tag.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--high); }
+  .tile .off { position: absolute; inset: 0; display: none; place-items: center; text-align: center; background: #000c;
+               font-weight: 600; padding: 10px; }
+  .tile.is-off .off { display: grid; }
+  .tile .bar { display: flex; align-items: center; gap: 8px; padding: 9px 11px; background: var(--panel); }
+  .tile .bar b { font-weight: 600; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile .bar small { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+  .tile .bar .nm { min-width: 0; flex: 1; }
+  .tile .bar .ex { background: none; border: 0; padding: 4px; color: var(--muted); }
+  .st-ok { color: var(--ok); } .st-bad { color: var(--high); } .st-wait { color: var(--muted); }
+  .add { background: var(--panel); border: 2px dashed var(--line-2); align-items: center; justify-content: center;
+         text-align: center; padding: 20px; min-height: 180px; color: var(--muted); }
+  .add .plus { width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--line-2); display: grid; place-items: center;
+               margin: 0 auto 10px; font-size: 24px; color: var(--text); }
+  .add b { color: var(--text); display: block; margin-bottom: 4px; }
+
+  /* ---------- selected camera ---------- */
+  .detail { display: grid; grid-template-columns: 170px 1fr auto; gap: 18px; padding: 14px; align-items: center; }
+  .detail img { width: 170px; aspect-ratio: 16/10; object-fit: cover; border-radius: 10px; background: #000; }
+  .detail .who b { font-size: 16px; display: block; margin: 4px 0; }
+  .detail dl { display: grid; grid-template-columns: 90px 1fr; gap: 6px 14px; margin: 0; border-left: 1px solid var(--line);
+               padding-left: 18px; }
+  .detail dt { color: var(--muted); } .detail dd { margin: 0; }
+  .detail .acts { display: flex; flex-direction: column; gap: 8px; min-width: 180px; }
+  .detail .mid { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
+  .pill.HIGH { background: var(--high); color: #fff; } .pill.MEDIUM { background: var(--medium); color: #111; }
+  .pill.LOW { background: var(--low); color: #fff; } .pill.INFO, .pill.TEST { background: var(--info-bg); color: var(--info); }
+
+  /* ---------- right column ---------- */
+  .recent { padding: 4px 8px 8px; }
+  .ritem { display: grid; grid-template-columns: 10px 64px 1fr auto; gap: 10px; align-items: center; padding: 10px 8px;
+           border-bottom: 1px solid var(--line); cursor: pointer; border-radius: 8px; }
+  .ritem:last-child { border-bottom: 0; }
+  .ritem:hover { background: var(--panel-2); }
+  .ritem .d { width: 10px; height: 10px; border-radius: 50%; }
+  .ritem .th { width: 64px; height: 44px; border-radius: 6px; background: var(--info-bg) center/cover; display: grid; place-items: center; color: var(--muted); }
+  .ritem .t { font-weight: 600; font-size: 13px; overflow-wrap: anywhere; }
+  .ritem small { color: var(--muted); display: block; font-weight: 400; margin-top: 2px; }
+  .d.HIGH { background: var(--high); } .d.MEDIUM { background: var(--medium); } .d.LOW { background: var(--low); } .d.INFO { background: var(--info); }
+  .log { padding: 6px 16px 14px; display: flex; flex-direction: column; gap: 12px; }
+  .litem { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: center; }
+  .litem .c { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; }
+  .litem .c svg { width: 16px; height: 16px; }
+  .litem .c.HIGH { background: var(--high); } .litem .c.MEDIUM { background: var(--medium); }
+  .litem .c.LOW { background: var(--low); } .litem .c.INFO { background: #475569; } .litem .c.SYS { background: var(--ok); }
+  .litem div { font-size: 13px; overflow-wrap: anywhere; } .litem small { color: var(--muted); display: block; }
+
+  /* ---------- alerts view ---------- */
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0; }
+  .filters button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .events { display: flex; flex-direction: column; gap: 8px; }
+  .ev { display: flex; gap: 12px; align-items: center; background: var(--panel); border: 1px solid var(--line);
+        border-left: 4px solid var(--info); border-radius: 10px; padding: 10px 12px; }
+  .ev.HIGH { border-left-color: var(--high); } .ev.MEDIUM { border-left-color: var(--medium); } .ev.LOW { border-left-color: var(--low); }
+  .ev.fresh { animation: flash 2s ease-out; } @keyframes flash { from { background: var(--high-bg); } }
+  .ev .th { width: 112px; height: 63px; flex: none; border-radius: 6px; background: var(--info-bg) center/cover; cursor: zoom-in;
+            display: grid; place-items: center; color: var(--muted); }
+  .ev .body { flex: 1; min-width: 0; }
+  .ev .msg { font-weight: 600; overflow-wrap: anywhere; }
+  .ev .sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .empty { padding: 30px; text-align: center; color: var(--muted); border: 1px dashed var(--line-2); border-radius: var(--radius); }
+
+  /* ---------- cameras view ---------- */
+  .camlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-top: 14px; }
+  .camcard .view { aspect-ratio: 16/9; background: #000; border-radius: var(--radius) var(--radius) 0 0; overflow: hidden; }
+  .camcard .view img { width: 100%; height: 100%; object-fit: cover; }
+  .camcard .meta { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .camcard .row1 { display: flex; align-items: center; gap: 8px; }
+  .camcard .row1 b { margin-right: auto; }
+  .area { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 6px;
+          background: var(--info-bg); color: var(--info); }
+  .area.outside { background: var(--ok-bg); color: var(--ok); }
+  .zl { font-size: 13px; color: var(--muted); } .zl .ne { color: var(--high); font-weight: 600; }
+
+  /* ---------- settings view ---------- */
+  .settings { display: grid; gap: 14px; max-width: 820px; margin-top: 14px; }
+  .set { display: flex; align-items: center; gap: 16px; padding: 16px; }
+  .set .tx { flex: 1; } .set .tx b { display: block; font-size: 15px; } .set .tx span { color: var(--muted); font-size: 13px; }
+  .switch { position: relative; width: 46px; height: 26px; border-radius: 99px; background: var(--line-2); border: 0; padding: 0; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .switch.on { background: var(--accent); } .switch.on::after { left: 23px; }
+  .kv { display: grid; grid-template-columns: 180px 1fr; gap: 8px 16px; padding: 16px; font-size: 13.5px; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .help { padding: 4px 18px 10px; } .help li { margin: 6px 0; color: var(--muted); } .help b { color: var(--text); }
+
+  /* ---------- modals ---------- */
+  .modal { position: fixed; inset: 0; background: #000c; display: none; z-index: 30; padding: 16px; overflow: auto; }
+  .modal.show { display: block; }
+  #viewer { cursor: zoom-out; } #viewer.show { display: grid; place-items: center; }
+  #viewer img { max-width: 100%; max-height: 92vh; border-radius: 8px; }
+  .sheet { max-width: 1280px; margin: 0 auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .sheet.small { max-width: 620px; margin-top: 8vh; }
+  .sheet .head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .sheet .head b { margin-right: auto; font-size: 16px; }
+  .sheet .pad { padding: 16px 20px; } .sheet ol li { margin: 8px 0; } .sheet code { background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+  .ed { display: grid; grid-template-columns: 1fr 330px; }
+  .stage { position: relative; background: #000; align-self: start; cursor: crosshair; user-select: none; touch-action: none; }
+  .stage img { width: 100%; display: block; }
+  .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .stage .pt { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff;
+               border: 3px solid var(--accent); pointer-events: none; }
+  .stage .pt.first { border-color: var(--ok); width: 18px; height: 18px; margin: -9px 0 0 -9px; }
+  .stage .lbl { position: absolute; transform: translate(-50%, -50%); background: #000b; color: #fff; font-size: 12px; font-weight: 700;
+                padding: 2px 7px; border-radius: 5px; pointer-events: none; white-space: nowrap; }
+  .edpanel { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; border-left: 1px solid var(--line); }
+  .edpanel ol { margin: 0; padding-left: 20px; color: var(--muted); }
+  .edpanel label.l { font-size: 12.5px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .edpanel input[type=text] { width: 100%; font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line-2);
+                              background: var(--panel-2); color: var(--text); }
+  .kind { display: flex; gap: 8px; align-items: flex-start; padding: 9px 10px; border: 2px solid var(--line-2); border-radius: 10px;
+          cursor: pointer; margin-bottom: 6px; }
+  .kind input { margin-top: 4px; } .kind small { display: block; color: var(--muted); }
+  .kind:has(input:checked) { border-color: var(--accent-2); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .alist { display: flex; flex-direction: column; gap: 6px; }
+  .aitem { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid var(--line-2); border-radius: 8px; }
+  .aitem .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .aitem span { flex: 1; min-width: 0; overflow-wrap: anywhere; } .aitem button { padding: 3px 8px; font-size: 12.5px; }
+  .tip { font-size: 12.5px; color: var(--muted); background: var(--panel-2); border-radius: 8px; padding: 8px 10px; }
+  #ed-msg { min-height: 1.2em; } #ed-msg.err { color: var(--high); } #ed-msg.ok { color: var(--ok); }
+
+  /* ---------- add camera wizard ---------- */
+  .wiz .steps { display: flex; gap: 4px; padding: 10px 20px 0; }
+  .wiz .steps span { flex: 1; text-align: center; font-size: 12.5px; color: var(--muted); padding: 6px 0; border-bottom: 3px solid var(--line-2); }
+  .wiz .steps span.on { color: var(--text); border-color: var(--accent-2); font-weight: 600; }
+  .wiz .steps span.done { color: var(--ok); border-color: var(--ok); }
+  .wstep { display: none; } .wstep.on { display: block; }
+  .wiz .pad { padding: 14px 20px; } .wiz .pad:last-child { padding-top: 0; }
+  .muted { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+  .inp { width: 100%; font: inherit; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--text); margin-bottom: 10px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row.end { justify-content: flex-end; margin-top: 8px; }
+  label.l { font-size: 12.5px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .found { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; max-height: 260px; overflow: auto; }
+  .dev { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line-2); border-radius: 10px; cursor: pointer; text-align: left; background: var(--panel-2); width: 100%; }
+  .dev:hover { border-color: var(--accent-2); } .dev b { margin-right: auto; }
+  .dev .tg { font-size: 11px; padding: 1px 7px; border-radius: 5px; background: var(--info-bg); color: var(--info); }
+  .dev .tg.ok { background: var(--ok-bg); color: var(--ok); }
+  .or { text-align: center; color: var(--muted); font-size: 12.5px; margin: 12px 0 8px; }
+  .adv { margin: 4px 0 6px; color: var(--muted); font-size: 13px; } .adv summary { cursor: pointer; margin-bottom: 8px; }
+  .confirm { display: grid; grid-template-columns: 220px 1fr; gap: 14px; align-items: center; margin-bottom: 14px; }
+  .confirm img { width: 220px; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; background: #000; }
+  .check { display: block; margin: 6px 0 4px; } .check small { display: block; color: var(--muted); margin-left: 22px; }
+  .progress { display: flex; gap: 14px; align-items: center; padding: 10px 0; }
+  .spin { width: 34px; height: 34px; border-radius: 50%; border: 4px solid var(--line-2); border-top-color: var(--accent-2); animation: sp 1s linear infinite; flex: none; }
+  .spin.ok { animation: none; border-color: var(--ok); } .spin.bad { animation: none; border-color: var(--high); }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  #wz-msg { min-height: 1.2em; font-size: 13.5px; } #wz-msg.err { color: var(--high); } #wz-msg.ok { color: var(--ok); }
+  @media (max-width: 600px) { .grid2, .confirm { grid-template-columns: 1fr; } .confirm img { width: 100%; } }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 1350px) { .live-grid { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 1000px) {
+    .cams { grid-template-columns: repeat(min(var(--cols, 3), 2), minmax(0, 1fr)); }
+    .detail { grid-template-columns: 1fr; } .detail img { width: 100%; } .detail .mid { grid-template-columns: 1fr; }
+    .detail dl { border-left: 0; padding-left: 0; } .ed { grid-template-columns: 1fr; } .edpanel { border-left: 0; }
+  }
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; }
+    .side { position: fixed; bottom: 0; top: auto; left: 0; right: 0; height: auto; flex-direction: row; padding: 6px; z-index: 20;
+            border-right: 0; border-top: 1px solid var(--line); }
+    .brand, .sysbox { display: none; }
+    .nav { flex-direction: row; width: 100%; justify-content: space-around; }
+    .nav a { flex-direction: column; gap: 2px; padding: 6px 10px; font-size: 11.5px; }
+    .nav .count { position: absolute; margin: -4px 0 0 18px; }
+    .content { padding: 14px 16px 90px; } .top { padding: 10px 16px; }
+    .cams { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); }
+    .ev .th { width: 80px; height: 45px; } .layout-btns { display: none; }
+    .kv { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5z" fill="#2563eb"/><circle cx="12" cy="11" r="3" fill="#fff"/></svg>
+      Smart Tech AI CCTV
+    </div>
+    <nav class="nav">
+      <a href="#live" data-v="live"><svg class="i"><use href="#i-monitor"/></svg>Live View</a>
+      <a href="#alerts" data-v="alerts"><svg class="i"><use href="#i-bell"/></svg>Alerts<span class="count" id="nav-count"></span></a>
+      <a href="#cameras" data-v="cameras"><svg class="i"><use href="#i-video"/></svg>Cameras</a>
+      <a href="#settings" data-v="settings"><svg class="i"><use href="#i-gear"/></svg>Settings</a>
+    </nav>
+    <div class="sysbox"><b id="sys-state"><span class="dot st-wait"></span>Connecting…</b><span id="sys-host"></span></div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <h1 id="view-title">Live View</h1>
+      <span class="chip" id="chip-live"><span class="dot"></span>Connecting…</span>
+      <span class="chip" id="chip-frigate">Frigate</span>
+      <span class="chip" id="chip-mode">Protection</span>
+      <span class="chip" id="chip-cloud">Mobile</span>
+      <button id="btn-pictures" hidden><svg class="i"><use href="#i-image"/></svg><span>Pictures to mobile: Off</span></button>
+      <button id="btn-sound"><svg class="i"><use href="#i-sound"/></svg><span>Sound on</span></button>
+      <button id="btn-test"><svg class="i"><use href="#i-bell"/></svg>Test alert</button>
+      <a id="lnk-frigate" href="https://localhost:8971" target="_blank" rel="noopener"><button>Frigate ↗</button></a>
+    </header>
+
+    <div class="content">
+      <div id="permission">
+        <span>🔔 Allow desktop notifications so you see new alerts even when this tab is in the background.</span>
+        <button class="primary" id="btn-allow">Allow notifications</button>
+      </div>
+
+      <!-- ================= LIVE VIEW ================= -->
+      <section class="page" id="view-live">
+        <div class="live-grid">
+          <div class="col">
+            <div id="banner" role="alert">
+              <img id="banner-img" alt="">
+              <div class="txt">⚠ <span id="banner-msg"></span><small id="banner-sub"></small></div>
+              <button class="seen" id="banner-seen">OK, seen</button>
+              <button class="x" id="banner-close" aria-label="Close">✕</button>
+            </div>
+
+            <div class="stats">
+              <button class="stat panel HIGH" data-go="HIGH"><span class="ic"><svg class="i"><use href="#i-alert"/></svg></span>
+                <div><b id="n-high">0</b><span>High alerts</span></div><span class="chev">›</span></button>
+              <button class="stat panel MEDIUM" data-go="MEDIUM"><span class="ic"><svg class="i"><use href="#i-circle"/></svg></span>
+                <div><b id="n-medium">0</b><span>Medium alerts</span></div><span class="chev">›</span></button>
+              <button class="stat panel LOW" data-go="LOW"><span class="ic"><svg class="i"><use href="#i-user"/></svg></span>
+                <div><b id="n-low">0</b><span>Low alerts</span></div><span class="chev">›</span></button>
+              <button class="stat panel INFO" data-go="INFO"><span class="ic"><svg class="i"><use href="#i-info"/></svg></span>
+                <div><b id="n-info">0</b><span>Info (known people, camera status)</span></div><span class="chev">›</span></button>
+            </div>
+
+            <div>
+              <div class="sec-h">
+                <h2><svg class="i"><use href="#i-grid"/></svg><span>Cameras (<span id="cam-count">0</span>)</span></h2>
+                <div class="layout-btns" id="layout">
+                  <button data-cols="1" title="1 per row"><svg class="i"><use href="#i-sq1"/></svg></button>
+                  <button data-cols="2" title="2 per row"><svg class="i"><use href="#i-sq2"/></svg></button>
+                  <button data-cols="3" title="3 per row"><svg class="i"><use href="#i-sq3"/></svg></button>
+                </div>
+                <select id="cam-filter"><option value="all">All cameras</option><option value="inside">Inside</option>
+                  <option value="outside">Outside</option><option value="alert">With alerts</option></select>
+              </div>
+              <div class="cams" id="cams"><div class="empty">Waiting for Frigate…</div></div>
+            </div>
+
+            <div class="panel detail" id="detail" hidden>
+              <img id="d-img" alt="">
+              <div class="mid">
+                <div class="who"><span id="d-pill"></span><b id="d-name"></b><small id="d-state"></small></div>
+                <dl><dt>Location</dt><dd id="d-loc">—</dd><dt>Time</dt><dd id="d-time">—</dd><dt>Event</dt><dd id="d-event">No recent alert</dd></dl>
+              </div>
+              <div class="acts">
+                <button class="primary" id="d-full"><svg class="i"><use href="#i-expand"/></svg>View full screen</button>
+                <button id="d-snap"><svg class="i"><use href="#i-camera"/></svg>Take snapshot</button>
+                <button id="d-draw"><svg class="i"><use href="#i-edit"/></svg>Draw areas</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="panel">
+              <div class="panel-h"><h2>Recent Alerts</h2><button class="link" data-goto="alerts">View all →</button></div>
+              <div class="recent" id="recent"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-h"><h2>Live Feed / Activity Log</h2><button class="link" data-goto="alerts">View all →</button></div>
+              <div class="log" id="log"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ALERTS ================= -->
+      <section class="page" id="view-alerts">
+        <div class="filters" id="filters">
+          <button data-f="ALL" class="on">All</button><button data-f="HIGH">High</button><button data-f="MEDIUM">Medium</button>
+          <button data-f="LOW">Low</button><button data-f="INFO">Info</button>
+        </div>
+        <div class="events" id="events"></div>
+      </section>
+
+      <!-- ================= CAMERAS ================= -->
+      <section class="page" id="view-cameras">
+        <div class="sec-h"><h2>Your cameras</h2><button id="btn-addcam"><svg class="i"><use href="#i-plus"/></svg>Add camera</button></div>
+        <div class="camlist" id="camlist"></div>
+      </section>
+
+      <!-- ================= SETTINGS ================= -->
+      <section class="page" id="view-settings">
+        <div class="settings">
+          <div class="panel set"><div class="tx"><b>Pictures to mobile app</b>
+            <span id="s-pic-txt">Alert pictures stay on this computer.</span></div><button class="switch" id="s-pic" aria-label="Pictures to mobile"></button></div>
+          <div class="panel set"><div class="tx"><b>Alert sound</b><span>Beep on this computer for new alerts.</span></div>
+            <button class="switch" id="s-sound" aria-label="Sound"></button></div>
+          <div class="panel set"><div class="tx"><b>Desktop notifications</b><span id="s-notif-txt"></span></div>
+            <button id="s-notif">Allow</button></div>
+          <div class="panel set"><div class="tx"><b>Test the whole chain</b><span>Sends a fake HIGH alert: dashboard, sound, desktop and mobile push.</span></div>
+            <button id="s-test"><svg class="i"><use href="#i-bell"/></svg>Send test alert</button></div>
+          <div class="panel"><div class="panel-h"><h2>System</h2></div><dl class="kv" id="s-info"></dl></div>
+          <div class="panel"><div class="panel-h"><h2>How it works</h2></div>
+            <ul class="help">
+              <li><span class="pill HIGH">HIGH</span> <b>anyone</b> at a 🚫 No-entry area (instantly), an <b>unknown</b> person in a ⚠ Restricted area, or a camera went offline.</li>
+              <li><span class="pill MEDIUM">MEDIUM</span> an unknown person inside while outside cameras are watching.</li>
+              <li><span class="pill LOW">LOW</span> a known family member entered a restricted area.</li>
+              <li><span class="pill INFO">INFO</span> a known person was seen, or a camera came back online.</li>
+              <li><b>🛡 Inside + Outside</b>: outside cameras are the first line. <b>⚠ Backup</b>: an outside camera is off or missing, so inside cameras raise HIGH for any unknown person.</li>
+              <li>A person is called "Unknown" only after the face check had <b id="h-wait">3</b> s to find a match.</li>
+              <li>Rules: <code>event_engine/config/rules.yml</code> (applies on save). Events are deleted after <b id="h-days">7</b> days.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- full-size picture -->
+<div class="modal" id="viewer"><img alt=""></div>
+
+<!-- add camera wizard -->
+<div class="modal" id="addcam">
+  <div class="sheet small wiz">
+    <div class="head"><b id="wz-title">Add a camera</b><button id="wz-close">✕ Close</button></div>
+    <div class="steps"><span data-s="1">1 Find</span><span data-s="2">2 Log in</span><span data-s="3">3 Confirm</span><span data-s="4">4 Add</span></div>
+
+    <div class="pad wstep" data-step="1">
+      <p class="muted">Plug the camera into the router (or connect it to Wi-Fi with its own app), then scan.</p>
+      <div class="row">
+        <input type="text" id="wz-subnet" class="inp" style="flex:1" aria-label="Network">
+        <button class="primary" id="wz-scan"><svg class="i"><use href="#i-grid"/></svg>Scan for cameras</button>
+      </div>
+      <div id="wz-found" class="found"></div>
+      <div class="or">or type the camera's IP address</div>
+      <div class="row"><input type="text" id="wz-ip-manual" class="inp" style="flex:1" placeholder="e.g. 192.168.1.64">
+        <button id="wz-manual">Next →</button></div>
+    </div>
+
+    <div class="pad wstep" data-step="2">
+      <p class="muted">Enter the login you set in the camera's own app (often <b>admin</b>). It is saved only on this box, never in the cloud.</p>
+      <label class="l">Camera IP</label><input type="text" id="wz-ip" class="inp">
+      <div class="grid2">
+        <div><label class="l">Username</label><input type="text" id="wz-user" class="inp" value="admin" autocomplete="off"></div>
+        <div><label class="l">Password</label><input type="password" id="wz-pass" class="inp" autocomplete="new-password"></div>
+      </div>
+      <details class="adv"><summary>Advanced</summary><label class="l">RTSP port</label><input type="number" id="wz-port" class="inp" value="554"></details>
+      <div class="row end"><button id="wz-back1">← Back</button><button class="primary" id="wz-connect">Connect</button></div>
+    </div>
+
+    <div class="pad wstep" data-step="3">
+      <div class="confirm">
+        <img id="wz-preview" alt="Camera picture">
+        <div>
+          <b id="wz-model"></b>
+          <div class="muted" id="wz-streams"></div>
+        </div>
+      </div>
+      <label class="l">Camera name</label><input type="text" id="wz-name" class="inp" maxlength="40" placeholder="e.g. Front Gate">
+      <label class="l">Where is it?</label>
+      <div class="grid2">
+        <label class="kind"><input type="radio" name="wz-area" value="outside" checked><span><b>🌳 Outside</b><small>Wall, lawn, gate - first line of defence</small></span></label>
+        <label class="kind"><input type="radio" name="wz-area" value="inside"><span><b>🏠 Inside</b><small>Door, lounge, stairs</small></span></label>
+      </div>
+      <label class="check"><input type="checkbox" id="wz-face"> Recognise family faces on this camera
+        <small>Best when faces are close and in front (doors, gates). Leave off for walls and far views.</small></label>
+      <div class="row end"><button id="wz-back2">← Back</button><button class="primary" id="wz-add">Add camera</button></div>
+    </div>
+
+    <div class="pad wstep" data-step="4">
+      <div class="progress"><div class="spin" id="wz-spin"></div><div><b id="wz-step">Working…</b>
+        <div class="muted">Please keep this page open. Video and alerts pause for about 2 minutes while the AI restarts.</div></div></div>
+      <div class="row end"><button class="primary" id="wz-done" hidden>Draw areas on this camera →</button></div>
+    </div>
+    <div class="pad"><div id="wz-msg"></div></div>
+  </div>
+</div>
+
+<!-- area editor -->
+<div class="modal" id="editor" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <div class="head"><b id="ed-title">Draw areas</b>
+      <button id="ed-refresh">↻ New picture</button><button id="ed-close">✕ Close</button></div>
+    <div class="ed">
+      <div class="stage" id="ed-stage">
+        <img id="ed-img" alt="Camera picture">
+        <svg id="ed-svg" viewBox="0 0 1 1" preserveAspectRatio="none"></svg>
+        <div id="ed-marks"></div>
+      </div>
+      <div class="edpanel">
+        <ol><li>Click on the picture around the area, point by point (at least 3).</li>
+          <li>Choose what the area is for and give it a name.</li><li>Press <b>Save area</b>. It works straight away.</li></ol>
+        <div class="row"><button id="ed-undo">↶ Undo point</button><button id="ed-clear">Clear</button></div>
+        <div><label class="l" for="ed-name">Area name</label><input type="text" id="ed-name" maxlength="40" placeholder="e.g. Back Wall Top"></div>
+        <div><label class="l">Area type</label>
+          <label class="kind"><input type="radio" name="ed-kind" value="no_entry" checked>
+            <span>🚫 <b>No-entry</b><small>Nobody may come in this way. Alert for <b>everyone</b>, instantly, even family.</small></span></label>
+          <label class="kind"><input type="radio" name="ed-kind" value="restricted">
+            <span>⚠ <b>Restricted</b><small>Alert for <b>strangers</b> (HIGH). Family gets LOW.</small></span></label>
+        </div>
+        <button class="primary" id="ed-save">Save area</button>
+        <div id="ed-msg"></div>
+        <div class="tip">💡 The AI checks where a person's <b>feet</b> are. For a wall, cover the top of the wall <b>and</b> a strip just above it.</div>
+        <div><label class="l">Areas on this camera</label><div class="alist" id="ed-list"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- icons -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m23 9-6 6M17 9l6 6"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></symbol>
+  <symbol id="i-sq1" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></symbol>
+  <symbol id="i-sq2" viewBox="0 0 24 24"><rect x="3" y="5" width="8" height="14" rx="1"/><rect x="13" y="5" width="8" height="14" rx="1"/></symbol>
+  <symbol id="i-sq3" viewBox="0 0 24 24"><rect x="2" y="6" width="6" height="12" rx="1"/><rect x="9" y="6" width="6" height="12" rx="1"/><rect x="16" y="6" width="6" height="12" rx="1"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M3 7V3h4M17 3h4v4M21 17v4h-4M7 21H3v-4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+</svg>
+
+<script>
+const $ = s => document.querySelector(s);
+const state = { events: [], filter: "ALL", notify: ["HIGH", "LOW"], cams: [], status: null, selected: null,
+                sound: localGet("sound", "on") === "on", cols: +localGet("cols", "3"), camFilter: "all" };
+const ICON_FOR = { HIGH: "i-alert", MEDIUM: "i-circle", LOW: "i-user", INFO: "i-info" };
+
+function localGet(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } }
+function localSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
+async function getJSON(url, opts) { const r = await fetch(url, opts); if (!r.ok) throw new Error(r.status); return r.json(); }
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function icon(id) { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("class", "i");
+  const u = document.createElementNS("http://www.w3.org/2000/svg", "use"); u.setAttribute("href", `#${id}`); s.append(u); return s; }
+function fmtTime(ts) { return new Date(ts * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+function fmtWhen(ts) {
+  const d = new Date(ts * 1000), today = new Date();
+  const t = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+  return d.toDateString() === today.toDateString() ? t : `${d.toLocaleDateString()} ${t}`;
+}
+
+// ---------- navigation ----------
+const TITLES = { live: "Live View", alerts: "Alerts", cameras: "Cameras", settings: "Settings" };
+function showView() {
+  const v = (location.hash || "#live").slice(1);
+  const view = TITLES[v] ? v : "live";
+  for (const s of document.querySelectorAll(".page")) s.classList.toggle("on", s.id === `view-${view}`);
+  for (const a of document.querySelectorAll(".nav a")) a.classList.toggle("on", a.dataset.v === view);
+  $("#view-title").textContent = TITLES[view];
+  if (view === "cameras") renderCamList();
+  if (view === "settings") renderSettings();
+}
+window.addEventListener("hashchange", showView);
+for (const b of document.querySelectorAll("[data-goto]")) b.onclick = () => { location.hash = b.dataset.goto; };
+for (const b of document.querySelectorAll("[data-go]")) b.onclick = () => { setFilter(b.dataset.go); location.hash = "alerts"; };
+
+// ---------- sound ----------
+let audio;
+function unlockAudio() { if (!audio) try { audio = new AudioContext(); } catch {} }
+document.addEventListener("pointerdown", unlockAudio, { once: true });
+function beep(level) {
+  if (!state.sound || !audio) return;
+  const pattern = level === "HIGH" ? [0, .25, .5] : [0];
+  for (const t of pattern) {
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.frequency.value = level === "HIGH" ? 880 : 620; o.type = "square";
+    g.gain.setValueAtTime(.12, audio.currentTime + t);
+    g.gain.exponentialRampToValueAtTime(.0001, audio.currentTime + t + .18);
+    o.connect(g).connect(audio.destination); o.start(audio.currentTime + t); o.stop(audio.currentTime + t + .2);
+  }
+}
+function toggleSound() { unlockAudio(); state.sound = !state.sound; localSet("sound", state.sound ? "on" : "off"); renderSound(); }
+function renderSound() {
+  const b = $("#btn-sound"); b.replaceChildren(icon(state.sound ? "i-sound" : "i-mute"), el("span", "", state.sound ? "Sound on" : "Sound off"));
+  $("#s-sound").classList.toggle("on", state.sound);
+}
+$("#btn-sound").onclick = toggleSound; $("#s-sound").onclick = toggleSound;
+
+// ---------- desktop notifications ----------
+function renderPermission() {
+  const supported = "Notification" in window, p = supported ? Notification.permission : "unsupported";
+  $("#permission").classList.toggle("show", p === "default");
+  $("#s-notif-txt").textContent = p === "granted" ? "Allowed - new alerts pop up on this computer."
+    : p === "denied" ? "Blocked in the browser - allow it in the site settings (padlock icon)."
+    : p === "unsupported" ? "Not supported by this browser." : "Not allowed yet.";
+  $("#s-notif").disabled = p !== "default";
+  $("#s-notif").textContent = p === "granted" ? "Allowed" : "Allow";
+}
+async function askPermission() { unlockAudio(); await Notification.requestPermission(); renderPermission(); }
+$("#btn-allow").onclick = askPermission; $("#s-notif").onclick = askPermission;
+
+let titleTimer;
+function flashTitle(text) {
+  clearInterval(titleTimer); let on = false;
+  titleTimer = setInterval(() => { document.title = (on = !on) ? text : "Smart Tech CCTV"; }, 900);
+  setTimeout(stopTitle, 30000);
+}
+function stopTitle() { clearInterval(titleTimer); document.title = "Smart Tech CCTV"; }
+
+function alertUser(ev) {
+  if (!state.notify.includes(ev.level)) return;
+  beep(ev.level);
+  if ("Notification" in window && Notification.permission === "granted") {
+    const n = new Notification(`${ev.level} alert · ${ev.camera_name || ""}`, {
+      body: ev.message, tag: ev.id, icon: ev.snapshot || undefined, requireInteraction: ev.level === "HIGH" });
+    n.onclick = () => { window.focus(); location.hash = "live"; n.close(); };
+  }
+  if (ev.level === "HIGH") showBanner(ev);
+}
+function showBanner(ev) {
+  $("#banner-msg").textContent = ev.message;
+  $("#banner-sub").textContent = ev.rule || "";
+  const img = $("#banner-img"); img.style.display = ev.snapshot ? "" : "none"; if (ev.snapshot) img.src = ev.snapshot;
+  $("#banner").classList.add("show");
+  flashTitle(`🚨 ${ev.message}`);
+}
+function hideBanner() { $("#banner").classList.remove("show"); stopTitle(); }
+$("#banner-close").onclick = hideBanner; $("#banner-seen").onclick = hideBanner;
+
+// ---------- alerts ----------
+function thumbFor(ev, cls) {
+  const t = el("div", cls);
+  if (ev.snapshot) { t.style.backgroundImage = `url("${ev.snapshot}")`; t.onclick = e => { e.stopPropagation(); openViewer(ev.snapshot); }; }
+  else t.append(icon(ev.kind === "camera" || ev.kind === "system" ? "i-video" : ICON_FOR[ev.level] || "i-info"));
+  return t;
+}
+function pill(ev) { const lv = ev.kind === "test" ? "TEST" : ev.level; return el("span", `pill ${lv}`, lv); }
+
+function eventRow(ev, fresh) {
+  const row = el("div", `ev ${ev.level}${fresh ? " fresh" : ""}`);
+  const body = el("div", "body");
+  const parts = [fmtWhen(ev.ts), ev.camera_name, ev.zone_name, ev.rule];
+  if (ev.score) parts.push(`face match ${Math.round(ev.score * 100)}%`);
+  body.append(el("div", "msg", ev.message), el("div", "sub", parts.filter(Boolean).join(" · ")));
+  row.append(thumbFor(ev, "th"), body, pill(ev));
+  return row;
+}
+function renderEvents(freshId) {
+  const list = $("#events");
+  const shown = state.events.filter(e => state.filter === "ALL" || e.level === state.filter);
+  list.replaceChildren(...shown.slice(0, 200).map(e => eventRow(e, e.id === freshId)));
+  if (!shown.length) list.append(el("div", "empty", state.filter === "ALL"
+    ? "No alerts yet. Walk into an area, or press “Test alert”." : `No ${state.filter} alerts.`));
+  renderRecent(); renderLog(); renderDetail(); markAlertTiles();
+}
+function setFilter(f) {
+  state.filter = f;
+  for (const b of $("#filters").querySelectorAll("button")) b.classList.toggle("on", b.dataset.f === f);
+  renderEvents();
+}
+$("#filters").onclick = e => { const f = e.target.dataset?.f; if (f) setFilter(f); };
+
+function renderRecent() {
+  const box = $("#recent");
+  const items = state.events.filter(e => e.level !== "INFO").slice(0, 5);
+  box.replaceChildren(...items.map(ev => {
+    const r = el("div", "ritem");
+    const txt = el("div", "t", ev.message.replace(/ - \d{1,2}:\d{2} [AP]M.*$/, ""));
+    txt.append(el("small", "", fmtWhen(ev.ts)));
+    r.append(el("span", `d ${ev.level}`), thumbFor(ev, "th"), txt, pill(ev));
+    r.onclick = () => { if (ev.camera) selectCam(ev.camera); };
+    return r;
+  }));
+  if (!items.length) box.append(el("div", "empty", "No alerts yet."));
+}
+function renderLog() {
+  const box = $("#log");
+  const items = state.events.slice(0, 7);
+  box.replaceChildren(...items.map(ev => {
+    const r = el("div", "litem");
+    const kind = ev.kind === "system" ? "SYS" : ev.level;
+    const c = el("span", `c ${kind}`); c.append(icon(ev.kind === "camera" ? "i-video" : ev.kind === "system" ? "i-check" : ICON_FOR[ev.level] || "i-info"));
+    const t = el("div", "", ev.message.replace(/ - \d{1,2}:\d{2} [AP]M.*$/, "")); t.append(el("small", "", fmtTime(ev.ts)));
+    r.append(c, t); return r;
+  }));
+  if (!items.length) box.append(el("div", "empty", "Nothing yet."));
+}
+
+function openViewer(src) { $("#viewer img").src = src; $("#viewer").classList.add("show"); }
+$("#viewer").onclick = () => $("#viewer").classList.remove("show");
+for (const b of document.querySelectorAll("[data-close]")) b.onclick = () => $(`#${b.dataset.close}`).classList.remove("show");
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") for (const m of document.querySelectorAll(".modal")) m.classList.remove("show");
+});
+
+// ---------- camera grid (live view) ----------
+const liveImgs = new Map();   // camera id -> [img elements]
+function camState(c) {
+  if (c.missing) return ["Not set up", "st-bad"];
+  if (!c.enabled) return ["Disabled", "st-bad"];
+  if (c.online === null) return ["Checking…", "st-wait"];
+  return c.online ? ["Live", "st-ok"] : ["Offline", "st-bad"];
+}
+function recentAlert(camId, seconds = 120) {
+  const now = Date.now() / 1000;
+  return state.events.find(e => e.camera === camId && e.level === "HIGH" && now - e.ts < seconds);
+}
+function registerLive(id, img) { if (!liveImgs.has(id)) liveImgs.set(id, []); liveImgs.get(id).push(img); }
+
+function renderCams() {
+  const box = $("#cams");
+  $("#cam-count").textContent = state.cams.filter(c => !c.missing).length;
+  box.style.setProperty("--cols", state.cols);
+  for (const b of $("#layout").querySelectorAll("button")) b.classList.toggle("on", +b.dataset.cols === state.cols);
+  const cams = state.cams.filter(c => state.camFilter === "all" ? true
+    : state.camFilter === "alert" ? !!recentAlert(c.id, 600) : c.area === state.camFilter);
+  const key = cams.map(c => `${c.id}:${c.missing ? 0 : 1}`).join() + `|${state.cols}`;
+  if (box.dataset.key !== key) {
+    box.dataset.key = key; box.replaceChildren();
+    for (const [id, imgs] of liveImgs) liveImgs.set(id, imgs.filter(i => !box.contains(i) && document.body.contains(i)));
+    for (const c of cams) {
+      const tile = el("div", "tile"); tile.dataset.id = c.id;
+      tile.innerHTML = `<div class="view"><img alt=""><span class="tag l" hidden>⚠ ALERT</span><span class="tag r live">LIVE</span>
+        <div class="off"></div></div>
+        <div class="bar"><svg class="i"><use href="#i-video"/></svg><div class="nm"><b></b><small><span class="dot"></span><span class="st"></span></small></div>
+        <button class="ex" title="Full screen"><svg class="i"><use href="#i-expand"/></svg></button></div>`;
+      tile.onclick = () => selectCam(c.id);
+      tile.querySelector(".ex").onclick = e => { e.stopPropagation(); openViewer(liveUrl(c.id, 1080)); };
+      box.append(tile);
+      if (!c.missing) { registerLive(c.id, tile.querySelector("img")); refreshLive(c.id); }
+    }
+    const add = el("div", "tile add");
+    add.innerHTML = `<div class="plus">+</div><b>Add camera</b>Connect more cameras to watch more of your home`;
+    add.onclick = () => openWizard();
+    box.append(add);
+  }
+  for (const tile of box.querySelectorAll(".tile[data-id]")) {
+    const c = state.cams.find(x => x.id === tile.dataset.id); if (!c) continue;
+    const [txt, cls] = camState(c);
+    tile.querySelector("b").textContent = c.name;
+    const small = tile.querySelector("small"); small.className = cls; small.querySelector(".st").textContent = txt;
+    tile.querySelector(".off").innerHTML = c.missing ? "Not set up in Frigate yet" : "Camera offline<br>no video";
+    tile.classList.toggle("is-off", c.missing || c.online === false || !c.enabled);
+    tile.querySelector(".tag.r").hidden = c.online !== true;
+    tile.classList.toggle("sel", state.selected === c.id);
+  }
+  markAlertTiles();
+  if (!state.selected && state.cams.some(c => !c.missing)) selectCam(state.cams.find(c => !c.missing).id);
+  renderDetail();
+}
+function markAlertTiles() {
+  for (const tile of document.querySelectorAll("#cams .tile[data-id]")) {
+    const hot = !!recentAlert(tile.dataset.id);
+    tile.classList.toggle("alert", hot);
+    tile.querySelector(".tag.l").hidden = !hot;
+  }
+}
+$("#layout").onclick = e => { const b = e.target.closest("button"); if (!b) return; state.cols = +b.dataset.cols; localSet("cols", state.cols); renderCams(); };
+$("#cam-filter").onchange = e => { state.camFilter = e.target.value; renderCams(); };
+
+function liveUrl(id, h) { return `/api/live/${encodeURIComponent(id)}.jpg?h=${h}&t=${Date.now()}`; }
+const refreshing = new Set();
+function refreshLive(id) {
+  if (refreshing.has(id)) return;
+  refreshing.add(id);
+  const loop = () => {
+    const imgs = (liveImgs.get(id) || []).filter(i => document.body.contains(i));
+    liveImgs.set(id, imgs);
+    if (!imgs.length) { refreshing.delete(id); return; }
+    const tmp = new Image();
+    const next = () => setTimeout(loop, document.hidden ? 5000 : 700);
+    tmp.onload = () => { for (const i of imgs) i.src = tmp.src; next(); };
+    tmp.onerror = next;
+    tmp.src = liveUrl(id, 480);
+  };
+  loop();
+}
+
+// ---------- selected camera panel ----------
+function selectCam(id) {
+  state.selected = id;
+  for (const t of document.querySelectorAll("#cams .tile[data-id]")) t.classList.toggle("sel", t.dataset.id === id);
+  const img = $("#d-img");
+  if (!img.dataset.cam || img.dataset.cam !== id) { img.dataset.cam = id; liveImgs.forEach(list => { const i = list.indexOf(img); if (i >= 0) list.splice(i, 1); });
+    registerLive(id, img); refreshLive(id); }
+  renderDetail();
+}
+function renderDetail() {
+  const c = state.cams.find(x => x.id === state.selected);
+  $("#detail").hidden = !c || c.missing;
+  if (!c || c.missing) return;
+  const ev = state.events.find(e => e.camera === c.id && e.kind !== "system");
+  const [txt, cls] = camState(c);
+  $("#d-name").textContent = c.name;
+  const st = $("#d-state"); st.className = cls; st.textContent = `● ${txt}${c.online ? ` · ${c.fps} fps` : ""}`;
+  $("#d-pill").replaceChildren(ev && recentAlert(c.id) ? pill(ev) : el("span", `area ${c.area}`, c.area));
+  const zoneKind = ev?.zone_kind === "no_entry" ? "No-entry area" : ev?.zone_kind === "restricted" ? "Restricted area" : null;
+  $("#d-loc").textContent = [c.area === "outside" ? "Outside" : "Inside", ev?.zone_name, zoneKind].filter(Boolean).join(" · ");
+  $("#d-time").textContent = ev ? fmtWhen(ev.ts) : "—";
+  $("#d-event").textContent = ev ? `${ev.person || ev.label || ""}${ev.rule ? ` / ${ev.rule}` : ""}` : "No recent alert";
+}
+$("#d-full").onclick = () => state.selected && openViewer(liveUrl(state.selected, 1080));
+$("#d-snap").onclick = async () => {
+  if (!state.selected) return;
+  const r = await fetch(liveUrl(state.selected, 1080)); if (!r.ok) return alert("Camera picture not available");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(await r.blob());
+  a.download = `${state.selected}-${new Date().toISOString().replace(/[:.]/g, "-")}.jpg`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+};
+$("#d-draw").onclick = () => { const c = state.cams.find(x => x.id === state.selected); if (c) openEditor(c); };
+
+// ---------- cameras view ----------
+function renderCamList() {
+  const box = $("#camlist"); box.replaceChildren();
+  for (const c of state.cams) {
+    const card = el("div", "panel camcard");
+    const view = el("div", "view"); const img = el("img"); view.append(img);
+    const meta = el("div", "meta");
+    const r1 = el("div", "row1"); const [txt, cls] = camState(c);
+    r1.append(el("span", `area ${c.area}`, c.area), el("b", "", c.name), el("small", cls, `● ${txt}`));
+    const zl = el("div", "zl");
+    if (c.no_entry?.length) zl.append(el("div", "ne", `🚫 No-entry: ${c.no_entry.join(", ")}`));
+    if (c.restricted?.length) zl.append(el("div", "", `⚠ Restricted: ${c.restricted.join(", ")}`));
+    if (!zl.childElementCount) zl.textContent = c.missing ? "Listed in rules.yml but not set up in Frigate yet." : "No areas yet.";
+    meta.append(r1, zl);
+    if (!c.missing) {
+      const row = el("div", "row");
+      const b = el("button", "primary"); b.append(icon("i-edit"), el("span", "", "Draw areas")); b.onclick = () => openEditor(c);
+      row.append(b);
+      if (c.removable) {
+        const rm = el("button", "", "Remove camera");
+        rm.onclick = () => removeCamera(c);
+        row.append(rm);
+      }
+      if (c.host) meta.append(el("div", "zl", `IP ${c.host}`));
+      meta.append(row); registerLive(c.id, img); refreshLive(c.id);
+    }
+    card.append(view, meta); box.append(card);
+  }
+  if (!state.cams.length) box.append(el("div", "empty", "Waiting for Frigate…"));
+}
+$("#btn-addcam").onclick = () => openWizard();
+
+// ---------- add camera wizard ----------
+const wz = { session: null, job: null, camera: null, busy: false };
+function wzStep(n) {
+  for (const s of document.querySelectorAll(".wstep")) s.classList.toggle("on", +s.dataset.step === n);
+  for (const s of document.querySelectorAll(".wiz .steps span")) {
+    s.classList.toggle("on", +s.dataset.s === n); s.classList.toggle("done", +s.dataset.s < n);
+  }
+  wzMsg("");
+}
+function wzMsg(text, cls = "") { const m = $("#wz-msg"); m.textContent = text; m.className = cls; }
+async function postJSON(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
+  return data;
+}
+async function openWizard() {
+  wz.session = wz.job = wz.camera = null;
+  $("#wz-title").textContent = "Add a camera"; $("#wz-found").replaceChildren(); $("#wz-pass").value = "";
+  $("#wz-ip-manual").value = ""; $("#wz-name").value = "";
+  wzStep(1); $("#addcam").classList.add("show");
+  try { $("#wz-subnet").value = (await getJSON("/api/setup")).subnet; } catch {}
+}
+function goLogin(ip) { $("#wz-ip").value = ip; wzStep(2); setTimeout(() => $("#wz-pass").focus(), 50); }
+$("#wz-close").onclick = () => { if (wz.job && !wz.jobDone && !confirm("The camera is still being added. Close anyway? It will continue in the background.")) return;
+  $("#addcam").classList.remove("show"); };
+$("#wz-back1").onclick = () => wzStep(1);
+$("#wz-back2").onclick = () => wzStep(2);
+$("#wz-manual").onclick = () => { const ip = $("#wz-ip-manual").value.trim(); if (!ip) return wzMsg("Type the camera's IP address", "err"); goLogin(ip); };
+
+$("#wz-scan").onclick = async () => {
+  const b = $("#wz-scan"), box = $("#wz-found"); b.disabled = true;
+  box.replaceChildren(el("div", "muted", "Scanning your network… (a few seconds)"));
+  try {
+    const devices = await postJSON("/api/setup/scan", { subnet: $("#wz-subnet").value });
+    box.replaceChildren();
+    if (!devices.length) box.append(el("div", "muted", "No cameras found. Check the camera has power and is on the same network, or type its IP below."));
+    for (const d of devices) {
+      const row = el("button", "dev");
+      row.append(icon("i-video"), el("b", "", d.ip));
+      if (d.rtsp) row.append(el("span", "tg ok", "Video (RTSP)"));
+      if (d.onvif_discovered || d.ports.some(p => p !== 554)) row.append(el("span", "tg", d.onvif_discovered ? "ONVIF" : `ports ${d.ports.join(", ")}`));
+      if (d.already_added) row.append(el("span", "tg", "already added"));
+      row.onclick = () => goLogin(d.ip);
+      box.append(row);
+    }
+  } catch (e) { box.replaceChildren(); wzMsg(e.message, "err"); }
+  finally { b.disabled = false; }
+};
+
+$("#wz-connect").onclick = async () => {
+  const b = $("#wz-connect"); b.disabled = true;
+  wzMsg("Talking to the camera… this can take up to a minute.");
+  try {
+    const r = await postJSON("/api/setup/probe", { ip: $("#wz-ip").value.trim(), username: $("#wz-user").value,
+      password: $("#wz-pass").value, rtsp_port: +$("#wz-port").value || 554 });
+    wz.session = r.session;
+    $("#wz-model").textContent = [r.manufacturer, r.model].filter(Boolean).join(" ") || "IP camera";
+    $("#wz-streams").textContent = r.same_stream
+      ? `One stream: ${r.main.width}×${r.main.height} (used for AI and recording)`
+      : `Recording: ${r.main.width}×${r.main.height} · AI detection: ${r.sub.width}×${r.sub.height}`;
+    $("#wz-preview").src = `/api/setup/preview/${encodeURIComponent(r.session)}.jpg?t=${Date.now()}`;
+    $("#wz-face").checked = document.querySelector("input[name=wz-area]:checked").value === "inside";
+    wzStep(3); $("#wz-name").focus();
+  } catch (e) { wzMsg(e.message, "err"); }
+  finally { b.disabled = false; }
+};
+for (const r of document.querySelectorAll("input[name=wz-area]")) r.onchange = () => { $("#wz-face").checked = r.value === "inside"; };
+
+$("#wz-add").onclick = async () => {
+  const name = $("#wz-name").value.trim(); if (!name) { $("#wz-name").focus(); return wzMsg("Please give the camera a name", "err"); }
+  const b = $("#wz-add"); b.disabled = true;
+  try {
+    const r = await postJSON("/api/setup/add", { session: wz.session, name,
+      area: document.querySelector("input[name=wz-area]:checked").value, face: $("#wz-face").checked });
+    $("#wz-title").textContent = `Adding “${name}”`;
+    wzStep(4); trackJob(r.job);
+  } catch (e) { wzMsg(e.message, "err"); }
+  finally { b.disabled = false; }
+};
+
+function trackJob(jobId, onDone) {
+  wz.job = jobId; wz.jobDone = false;
+  const spin = $("#wz-spin"); spin.className = "spin"; $("#wz-done").hidden = true;
+  const tick = async () => {
+    let j; try { j = await getJSON(`/api/setup/job/${jobId}`); } catch { return setTimeout(tick, 3000); }
+    $("#wz-step").textContent = j.error ? "Something went wrong" : j.step;
+    if (!j.done) return setTimeout(tick, 2000);
+    wz.jobDone = true;
+    if (j.error) { spin.className = "spin bad"; wzMsg(j.error, "err"); return; }
+    spin.className = "spin ok"; wz.camera = j.camera;
+    await loadCams(); loadStatus();
+    if (onDone) onDone(j); else { wzMsg("Camera added and watching. Next, draw its No-entry / Restricted areas.", "ok"); $("#wz-done").hidden = false; }
+  };
+  tick();
+}
+$("#wz-done").onclick = () => {
+  const c = state.cams.find(x => x.id === wz.camera);
+  $("#addcam").classList.remove("show");
+  if (c) openEditor(c);
+};
+
+function removeCamera(c) {
+  if (!confirm(`Remove “${c.name}”?\n\nIts login and drawn areas are deleted. Past alerts stay until they expire.\nVideo and alerts pause for about 1 minute while the AI restarts.`)) return;
+  fetch(`/api/cameras/${encodeURIComponent(c.id)}`, { method: "DELETE", headers: { "Content-Type": "application/json" } })
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+      if (!ok) return alert(d.error || "Could not remove the camera");
+      $("#wz-title").textContent = `Removing “${c.name}”`;
+      $("#addcam").classList.add("show"); wzStep(4);
+      trackJob(d.job, () => wzMsg("Camera removed.", "ok"));
+    });
+}
+
+// ---------- area editor ----------
+const ed = { cam: null, points: [], areas: [], editId: null };
+const KIND_COLOR = { no_entry: "#ef4444", restricted: "#f59e0b", none: "#8a93a3" };
+const KIND_TEXT = { no_entry: "🚫 No-entry", restricted: "⚠ Restricted", none: "not monitored" };
+async function openEditor(cam) {
+  ed.cam = cam; ed.points = []; ed.editId = null;
+  $("#ed-title").textContent = `Draw areas · ${cam.name}`; $("#ed-name").value = ""; setMsg("");
+  $("#editor").classList.add("show"); loadEditorPicture(); await loadAreas();
+}
+function loadEditorPicture() { $("#ed-img").src = liveUrl(ed.cam.id, 720); }
+async function loadAreas() {
+  try { ed.areas = await getJSON(`/api/areas/${encodeURIComponent(ed.cam.id)}`); } catch { ed.areas = []; }
+  drawEditor(); renderAreaList();
+}
+function setMsg(text, cls = "") { const m = $("#ed-msg"); m.textContent = text; m.className = cls; }
+function svgEl(tag, attrs) { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; }
+function drawEditor() {
+  const svg = $("#ed-svg"), marks = $("#ed-marks"); svg.replaceChildren(); marks.replaceChildren();
+  for (const a of ed.areas) {
+    if (a.id === ed.editId || a.points.length < 3) continue;
+    const col = KIND_COLOR[a.kind] || KIND_COLOR.none;
+    svg.append(svgEl("polygon", { points: a.points.map(p => p.join(",")).join(" "), fill: col, "fill-opacity": .25,
+      stroke: col, "stroke-width": 2, "vector-effect": "non-scaling-stroke" }));
+    const cx = a.points.reduce((s, p) => s + p[0], 0) / a.points.length, cy = a.points.reduce((s, p) => s + p[1], 0) / a.points.length;
+    const lbl = el("div", "lbl", `${a.kind === "no_entry" ? "🚫 " : a.kind === "restricted" ? "⚠ " : ""}${a.name}`);
+    lbl.style.left = `${cx * 100}%`; lbl.style.top = `${cy * 100}%`; marks.append(lbl);
+  }
+  if (ed.points.length) {
+    const closed = ed.points.length > 2;
+    svg.append(svgEl(closed ? "polygon" : "polyline", { points: ed.points.map(p => p.join(",")).join(" "), fill: closed ? "#2563eb" : "none",
+      "fill-opacity": .3, stroke: "#3b82f6", "stroke-width": 3, "vector-effect": "non-scaling-stroke" }));
+    ed.points.forEach((p, i) => { const d = el("div", `pt${i === 0 ? " first" : ""}`); d.style.left = `${p[0] * 100}%`; d.style.top = `${p[1] * 100}%`; marks.append(d); });
+  }
+}
+function renderAreaList() {
+  const list = $("#ed-list"); list.replaceChildren();
+  if (!ed.areas.length) { list.textContent = "None yet."; return; }
+  for (const a of ed.areas) {
+    const row = el("div", "aitem"); const sw = el("i", "sw"); sw.style.background = KIND_COLOR[a.kind] || KIND_COLOR.none;
+    const edit = el("button", "", "Edit");
+    edit.onclick = () => {
+      ed.editId = a.id; ed.points = a.points.map(p => [...p]); $("#ed-name").value = a.name;
+      const k = document.querySelector(`input[name=ed-kind][value=${a.kind === "restricted" ? "restricted" : "no_entry"}]`); if (k) k.checked = true;
+      setMsg(`Editing “${a.name}”. Clear and click new points to move it, then Save.`); drawEditor();
+    };
+    const del = el("button", "", "Delete");
+    del.onclick = async () => {
+      if (!confirm(`Delete the area “${a.name}”?`)) return;
+      const r = await fetch(`/api/areas/${encodeURIComponent(ed.cam.id)}/${encodeURIComponent(a.id)}`, { method: "DELETE", headers: { "Content-Type": "application/json" } });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) return setMsg(body.error || "Could not delete", "err");
+      if (ed.editId === a.id) { ed.editId = null; ed.points = []; }
+      setMsg(`Deleted “${a.name}”.`, "ok"); await loadAreas(); loadCams();
+    };
+    row.append(sw, el("span", "", `${a.name} · ${KIND_TEXT[a.kind] || a.kind}`), edit, del); list.append(row);
+  }
+}
+$("#ed-stage").addEventListener("pointerdown", e => {
+  if (e.button !== 0) return;
+  const r = $("#ed-svg").getBoundingClientRect(); const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+  if (x < 0 || x > 1 || y < 0 || y > 1) return;
+  ed.points.push([+x.toFixed(3), +y.toFixed(3)]); drawEditor();
+});
+$("#ed-undo").onclick = () => { ed.points.pop(); drawEditor(); };
+$("#ed-clear").onclick = () => { ed.points = []; drawEditor(); };
+$("#ed-refresh").onclick = loadEditorPicture;
+$("#ed-close").onclick = () => { $("#editor").classList.remove("show"); loadCams(); };
+$("#ed-save").onclick = async () => {
+  if (ed.points.length < 3) return setMsg("Click at least 3 points on the picture first.", "err");
+  const name = $("#ed-name").value.trim(); if (!name) { $("#ed-name").focus(); return setMsg("Please type a name for the area.", "err"); }
+  const kind = document.querySelector("input[name=ed-kind]:checked").value;
+  $("#ed-save").disabled = true;
+  try {
+    const r = await fetch(`/api/areas/${encodeURIComponent(ed.cam.id)}`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: ed.editId, name, kind, points: ed.points }) });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) return setMsg(body.error || "Could not save", "err");
+    setMsg(`Saved “${body.name}”. Monitoring is active now.`, "ok");
+    ed.points = []; ed.editId = null; $("#ed-name").value = ""; await loadAreas(); loadCams();
+  } finally { $("#ed-save").disabled = false; }
+};
+
+// ---------- pictures to mobile ----------
+let picturesOn = false, picturesLocked = false;
+function renderPictures(cloud) {
+  const b = $("#btn-pictures"); b.hidden = !cloud.enabled;
+  picturesOn = !!cloud.pictures; picturesLocked = cloud.pictures_mode !== "app";
+  b.disabled = picturesLocked; b.className = picturesOn ? "primary" : "";
+  b.querySelector("span").textContent = `Pictures to mobile: ${picturesOn ? "On" : "Off"}${picturesLocked ? " 🔒" : ""}`;
+  b.title = picturesLocked ? "Locked in rules.yml (cloud.upload_snapshots)" : picturesOn
+    ? "Alert pictures are sent to the mobile app. Click to stop and delete them from Firebase."
+    : "Alert pictures stay on this computer. Click to send them to the mobile app.";
+  const s = $("#s-pic"); s.classList.toggle("on", picturesOn); s.disabled = !cloud.enabled || picturesLocked;
+  $("#s-pic-txt").textContent = !cloud.enabled ? "Firebase is not set up." : picturesLocked ? "Locked in rules.yml (cloud.upload_snapshots)."
+    : picturesOn ? "Alert pictures are sent to the mobile app (stored in Firebase)." : "Alert pictures stay on this computer.";
+}
+async function togglePictures() {
+  const turnOn = !picturesOn;
+  if (!confirm(turnOn ? "Send alert pictures to the mobile app?\n\nPictures may show faces and will be stored in Firebase (Google cloud)."
+                      : "Stop sending pictures?\n\nAll pictures already in Firebase will be deleted.")) return;
+  const r = await fetch("/api/cloud/pictures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ share: turnOn }) });
+  if (!r.ok) return alert((await r.json().catch(() => ({}))).error || "Could not change the setting");
+  setTimeout(loadStatus, 2500);
+}
+$("#btn-pictures").onclick = togglePictures; $("#s-pic").onclick = togglePictures;
+
+// ---------- status ----------
+function setChip(id, cls, text, title) { const c = $(id); c.className = `chip ${cls}`; c.textContent = text; if (title != null) c.title = title; }
+async function loadStatus() {
+  try {
+    const s = await getJSON("/api/status"); state.status = s; state.notify = s.notify_levels;
+    setChip("#chip-frigate", s.frigate ? "ok" : "bad", s.frigate ? "Frigate running" : "Frigate not responding");
+    $("#lnk-frigate").href = s.frigate_ui;
+    if (s.mode === "normal") setChip("#chip-mode", "ok", "🛡 Inside + Outside", "Outside cameras are watching.");
+    else setChip("#chip-mode", "warn", s.outside_cameras.length ? "⚠ Backup: outside camera down" : "⚠ Inside only (no outside camera)",
+                 "Inside cameras raise HIGH for any unknown person.");
+    const cl = s.cloud || {};
+    setChip("#chip-cloud", !cl.enabled ? "" : cl.connected ? "ok" : "warn",
+            !cl.enabled ? "📱 Mobile off" : cl.connected ? "📱 Mobile sync on" : "📱 Mobile: not connected", cl.error || "");
+    renderPictures(cl);
+    const t = s.today || {};
+    $("#n-high").textContent = t.HIGH || 0; $("#n-medium").textContent = t.MEDIUM || 0;
+    $("#n-low").textContent = t.LOW || 0; $("#n-info").textContent = t.INFO || 0;
+    $("#nav-count").textContent = t.HIGH ? t.HIGH : "";
+    $("#h-wait").textContent = s.face_wait_seconds; $("#h-days").textContent = s.retention_days;
+    setLive(s.mqtt);
+    if ($("#view-settings").classList.contains("on")) renderSettings();
+  } catch { setLive(false); }
+}
+function setLive(ok) {
+  const c = $("#chip-live"); c.className = `chip ${ok ? "ok" : "bad"}`;
+  c.replaceChildren(el("span", "dot"), document.createTextNode(ok ? "Live" : "Reconnecting…"));
+  const sys = $("#sys-state"); sys.replaceChildren(el("span", `dot ${ok ? "st-ok" : "st-bad"}`), document.createTextNode(ok ? "System online" : "Reconnecting…"));
+  $("#sys-host").textContent = location.host;
+}
+function renderSettings() {
+  const s = state.status; if (!s) return;
+  const cl = s.cloud || {};
+  const rows = [["Frigate", s.frigate ? "Running" : "Not responding"], ["Protection mode", s.mode === "normal" ? "Inside + Outside" : "Backup (inside cameras take over)"],
+    ["Cameras", state.cams.map(c => `${c.name} (${c.area})`).join(", ") || "—"], ["Mobile sync", !cl.enabled ? "Off" : cl.connected ? "Connected" : `Not connected ${cl.error ? `- ${cl.error}` : ""}`],
+    ["Push topic", cl.push_topic || "—"], ["Alert pop-ups for", s.notify_levels.join(", ")], ["Face wait", `${s.face_wait_seconds} s`],
+    ["Keep events", `${s.retention_days} days`], ["Frigate (advanced)", s.frigate_ui]];
+  $("#s-info").replaceChildren(...rows.flatMap(([k, v]) => [el("dt", "", k), el("dd", "", v)]));
+}
+async function loadCams() {
+  try {
+    state.cams = await getJSON("/api/cameras"); renderCams();
+    if ($("#view-cameras").classList.contains("on")) renderCamList();
+    if ($("#view-settings").classList.contains("on")) renderSettings();
+  } catch {}
+}
+async function testAlert(b) { unlockAudio(); b.disabled = true; try { await getJSON("/api/test-alert", { method: "POST" }); } finally { b.disabled = false; } }
+$("#btn-test").onclick = e => testAlert(e.currentTarget); $("#s-test").onclick = e => testAlert(e.currentTarget);
+
+// ---------- live stream from the engine ----------
+function connect() {
+  const es = new EventSource("/api/stream");
+  es.onopen = () => { loadStatus(); loadCams(); reloadEvents(); };
+  es.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.type === "event") { state.events.unshift(m.event); renderEvents(m.event.id); alertUser(m.event); loadStatus(); }
+    else if (m.type === "update") {
+      const i = state.events.findIndex(x => x.id === m.event.id);
+      if (i >= 0) state.events[i] = { ...state.events[i], ...m.event }; else state.events.unshift(m.event);
+      renderEvents(m.event.id); loadStatus();
+    } else if (m.type === "cameras") loadCams();
+    else if (m.type === "status") loadStatus();
+  };
+  es.onerror = () => setLive(false);
+}
+async function reloadEvents() { try { state.events = await getJSON("/api/events?limit=200"); renderEvents(); } catch {} }
+
+renderSound(); renderPermission(); showView(); renderEvents();
+connect();
+setInterval(() => { loadStatus(); loadCams(); markAlertTiles(); }, 10000);
+</script>
+</body>
+</html>

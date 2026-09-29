@@ -1,0 +1,162 @@
+# Smart Tech AI CCTV - Frigate 0.18 configuration
+# Values like {FRIGATE_MQTT_PASSWORD} are filled in from the .env file at startup.
+
+mqtt:
+  enabled: true
+  host: mosquitto
+  port: 1883
+  user: '{FRIGATE_MQTT_USER}'
+  password: '{FRIGATE_MQTT_PASSWORD}'
+  topic_prefix: frigate
+  stats_interval: 15       # the Smart Tech camera watchdog uses these stats (keep at 15)
+
+# ---------- Object detection: YOLOv9-small on OpenVINO ----------
+detectors:
+  ov:
+    type: openvino
+    device: CPU            # Windows/Docker Desktop has no GPU access. On the N100 (Ubuntu) use: GPU
+
+# YOLOv9-small (more accurate than tiny), built with scripts/yolov9_export.Dockerfile.
+# On a slow box (e.g. N100 on CPU only) switch the path to yolov9-t-320.onnx.
+model:
+  model_type: yolo-generic
+  width: 320               # must match the size used when exporting the model
+  height: 320
+  input_tensor: nchw
+  input_dtype: float
+  path: /config/model_cache/yolov9-s-320.onnx
+  labelmap_path: /labelmap/coco-80.txt
+
+# Fallback: Frigate's built-in SSDLite model (use if the YOLOv9 file is missing)
+#model:
+#  width: 300
+#  height: 300
+#  input_tensor: nhwc
+#  input_pixel_format: bgr
+#  path: /openvino-model/ssdlite_mobilenet_v2.xml
+#  labelmap_path: /openvino-model/coco_91cl_bkgr.txt
+
+objects:
+  track:
+    - person
+    - car
+  filters:
+    person:
+      min_score: 0.5
+      threshold: 0.7       # a person must reach 70% confidence to count
+    car:
+      threshold: 0.7
+
+# ---------- Face recognition (set enabled: false to turn it off everywhere) ----------
+face_recognition:
+  enabled: true
+  model_size: small        # small = fast on CPU. "large" is more accurate but needs a GPU
+  unknown_score: 0.8       # at or below this = "Unknown"
+  recognition_threshold: 0.9   # must be this sure before a name is given
+  min_faces: 2             # needs 2+ good face matches before naming someone (fewer wrong names)
+  min_area: 1000           # ignore tiny/far-away faces (common source of wrong matches at night)
+  blur_confidence_filter: true
+  save_attempts: 100
+
+# ---------- Recording and snapshots (retention = privacy) ----------
+record:
+  enabled: true
+  continuous:
+    days: 0                # no 24/7 recording in the prototype
+  alerts:
+    retain:
+      days: 7
+      mode: active_objects
+  detections:
+    retain:
+      days: 3
+      mode: active_objects
+
+snapshots:
+  enabled: true
+  bounding_box: true
+  timestamp: true
+  retain:
+    default: 7             # delete snapshots after 7 days
+
+# ---------- go2rtc restream: Frigate opens each camera only once ----------
+go2rtc:
+  streams:
+    cam01_pc:
+      - rtsp://rtsp-server:8554/pc_cam
+    # Real IP camera example (main stream + substream):
+    # cam02_back:
+    #   - rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.10.102:554/<main-stream-path>
+    # cam02_back_sub:
+    #   - rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.10.102:554/<sub-stream-path>
+
+# ---------- Cameras ----------
+cameras:
+  cam01_pc:
+    friendly_name: Camera 01 (PC Webcam)
+    ffmpeg:
+      inputs:
+        # The webcam only has one stream, so it is used for both detection and recording.
+        # Real cameras: use the substream with roles [detect] and the main stream with [record].
+        - path: rtsp://127.0.0.1:8554/cam01_pc
+          input_args: preset-rtsp-restream
+          roles:
+            - detect
+            - record
+    detect:
+      enabled: true
+      width: 1280          # keep full 720p here: faces need pixels to be recognised
+      height: 720
+      fps: 10              # 10 checks per second = faster, smoother tracking (5 is enough for real cameras)
+    zones:
+      server_room:
+        coordinates: 0.013,0.012,0.006,0.989,0.997,0.992,0.994,0.006
+        friendly_name: Server Room
+        objects:
+          - person
+        inertia: 1
+        loitering_time: 0
+      wall:
+        coordinates: 0.757,0.008,0.757,0.992,0.997,0.989,0.990,0.004
+        friendly_name: WALL
+        objects:
+          - person
+        inertia: 1
+        loitering_time: 0
+    review:
+      alerts: {}
+    snapshots:
+      required_zones: []   # keep snapshots for everyone; the event engine decides alert level
+    face_recognition:
+      enabled: true        # turn face recognition off for just this camera with: false
+
+  # OUTSIDE camera example: boundary wall. Also add it to event_engine/config/rules.yml
+  # with "area: outside". (Its go2rtc streams must be named cam02_wall and cam02_wall_sub.)
+  # cam02_wall:
+  #   friendly_name: Camera 02 (Back Wall)
+  #   ffmpeg:
+  #     inputs:
+  #       - path: rtsp://127.0.0.1:8554/cam02_wall_sub
+  #         input_args: preset-rtsp-restream
+  #         roles: [detect]
+  #       - path: rtsp://127.0.0.1:8554/cam02_wall
+  #         input_args: preset-rtsp-restream
+  #         roles: [record]
+  #   detect: { width: 640, height: 360, fps: 5 }
+  #   objects:
+  #     track: [person]
+  #   face_recognition:
+  #     enabled: false       # faces are too small/far on a wall camera
+  #   zones:
+  #     wall_top:            # draw along the top of the wall in the UI (Settings > Masks / Zones)
+  #       friendly_name: Back Wall (Top)
+  #       coordinates: 0.05,0.18,0.95,0.15,0.95,0.32,0.05,0.35
+  #       objects: [person]
+  #       inertia: 2         # climbers don't stay long - react quickly
+  #     lawn:
+  #       friendly_name: Lawn
+  #       coordinates: 0,0.35,1,0.32,1,1,0,1
+  #       objects: [person]
+version: 0.18-0
+classification:
+  custom: {}

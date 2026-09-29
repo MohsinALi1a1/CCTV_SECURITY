@@ -1,0 +1,13 @@
+rules_version = '2';
+
+// Smart Tech AI CCTV - Storage rules (only needed if upload_snapshots: true in rules.yml)
+// Snapshots live at homes/{homeId}/snapshots/{eventId}.jpg
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /homes/{homeId}/snapshots/{file} {
+      allow read: if request.auth != null &&
+        request.auth.uid in firestore.get(/databases/(default)/documents/homes/$(homeId)).data.get('members', []);
+      allow write: if false;
+    }
+  }
+}

@@ -1,0 +1,6 @@
+aiomqtt==2.4.0
+aiohttp==3.12.15
+PyYAML==6.0.2
+tzdata==2025.2
+firebase-admin>=6.5,<8
+Pillow>=10,<12

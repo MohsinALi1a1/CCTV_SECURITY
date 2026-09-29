@@ -1,0 +1,133 @@
+# Smart Tech alert rules
+# Save this file and the changes are used within a second - no restart needed.
+# If you make a typing mistake, the engine keeps the previous rules and logs the error:
+#   docker logs smarttech-engine
+
+# ---------------------------------------------------------------------------
+# Cameras: where each camera is, and which of its Frigate zones are restricted.
+#   area: outside = first line (wall, lawn, gate)
+#   area: inside  = second line (doors, lounge, stairs)
+# Use the camera and zone names from frigate/config/config.yml.
+# Easiest: draw areas on the dashboard (http://localhost:8080 > Draw areas) -
+# they are added automatically and don't need to be listed here.
+#   restricted_zones: strangers -> HIGH, family -> LOW
+#   no_entry_zones:   everyone  -> HIGH, instantly
+#
+# BACKUP MODE: if there is no outside camera, or any outside camera stops
+# sending video, the "when: outside_down" rules below switch on, so the inside
+# cameras take over and alert on any unknown person.
+# ---------------------------------------------------------------------------
+cameras:
+  cam01_pc:
+    area: inside
+    restricted_zones: [server_room]
+
+  # Example outside camera watching the boundary wall (face recognition off in Frigate):
+  # cam02_wall:
+  #   area: outside
+  #   restricted_zones: [wall_top, lawn]
+
+  # Example outside camera at the gate (face recognition on in Frigate):
+  # cam03_gate:
+  #   area: outside
+  #   restricted_zones: [gate]
+
+# After a person is seen, wait this many seconds for face recognition before
+# deciding they are "Unknown". Known faces are reported immediately.
+face_wait_seconds: 3
+
+# A face match must be at least this confident to count as "known".
+known_min_score: 0.9
+
+# Don't repeat the same alert (same camera + zone + person + rule) within this many seconds.
+cooldown_seconds: 60
+
+# Delete events and snapshots older than this many days.
+retention_days: 7
+
+# A camera with no video for this many seconds raises an "offline" alert
+# (and, for an outside camera, switches on backup mode).
+camera_offline_seconds: 45
+
+# Which alert levels show a desktop pop-up and play a sound in the dashboard.
+notify_levels: [HIGH, MEDIUM, LOW]
+
+# Mobile app (Firebase). Every alert is saved to Firestore; these levels also
+# send a push notification to phones subscribed to topic smarttech_<HOME_ID>.
+cloud:
+  push_levels: [HIGH, MEDIUM]
+  push_updates: true        # push again when e.g. an "Unknown" person is later recognised
+  # PRIVACY - alert pictures (they may show faces):
+  #   app   = the owner decides with the "Share pictures" switch in the mobile app (default OFF).
+  #           Turning it off deletes every picture already in Firebase.
+  #   false = pictures never leave this machine, whatever the app says
+  #   true  = always share
+  upload_snapshots: app
+
+# ---------------------------------------------------------------------------
+# Rules are checked top to bottom - the FIRST matching rule decides the level.
+#   object: person | car                  (default: person)
+#   person: unknown | known | any         (for cars, use any)
+#   where:  no_entry   = enters a No-entry area (drawn on the dashboard, or no_entry_zones)
+#           restricted = enters one of the camera's restricted zones
+#           any        = seen anywhere on the camera (once per person)
+#   area:   inside | outside | any        (default: any)
+#   when:   always | outside_down         (outside_down = only in backup mode)
+#   hours:  "23:00-06:00"                 (optional, only between these times)
+#   level:  HIGH | MEDIUM | LOW | INFO
+# ---------------------------------------------------------------------------
+rules:
+  # No-entry areas (drawn on the dashboard with "Draw areas"): nobody may come in
+  # this way - family included - so the alert fires instantly, without a face check
+  - name: No-entry area crossed
+    person: any
+    where: no_entry
+    level: HIGH
+
+  # First line: someone unknown on the wall / lawn / gate, or in an inside restricted zone
+  - name: Unknown person in restricted zone
+    person: unknown
+    where: restricted
+    level: HIGH
+
+  # Second line, backup mode: outside cameras are not watching, so any
+  # unknown person inside the house is treated as an intruder
+  - name: Backup - unknown person inside
+    person: unknown
+    where: any
+    area: inside
+    when: outside_down
+    level: HIGH
+
+  # Second line, normal mode: outside cameras are watching, an unknown person
+  # inside (e.g. a guest you let in) is worth a look but not an emergency
+  - name: Unknown person inside
+    person: unknown
+    where: any
+    area: inside
+    level: MEDIUM
+
+  # Family
+  - name: Known person in restricted zone
+    person: known
+    where: restricted
+    level: LOW
+
+  - name: Known person seen
+    person: known
+    where: any
+    level: INFO
+
+  # Night watch: anyone outside at night, even without entering a zone
+  # - name: Person outside at night
+  #   person: any
+  #   where: any
+  #   area: outside
+  #   hours: "23:00-06:00"
+  #   level: HIGH
+
+  # - name: Car in restricted zone
+  #   object: car
+  #   person: any
+  #   where: restricted
+  #   level: LOW

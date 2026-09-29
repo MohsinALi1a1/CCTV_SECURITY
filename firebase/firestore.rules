@@ -1,0 +1,50 @@
+rules_version = '2';
+
+// Smart Tech AI CCTV - Firestore security rules
+// Deploy: Firebase console > Firestore Database > Rules (paste this), or `firebase deploy --only firestore:rules`
+//
+// Only the AI box writes data (it uses the Admin SDK, which is not limited by these rules).
+// Phones may only READ homes they are a member of, and may only mark an alert as acknowledged.
+// To give a phone user access, add their Firebase Auth uid to homes/{homeId}.members (an array).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isMember(homeId) {
+      return request.auth != null &&
+        request.auth.uid in get(/databases/$(database)/documents/homes/$(homeId)).data.get('members', []);
+    }
+
+    match /homes/{homeId} {
+      allow read: if isMember(homeId);
+      // The owner's "Share pictures" switch: members may change settings.share_snapshots only
+      allow update: if isMember(homeId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['settings'])
+        && request.resource.data.settings.diff(resource.data.get('settings', {})).affectedKeys()
+             .hasOnly(['share_snapshots'])
+        && request.resource.data.settings.share_snapshots is bool;
+      allow create, delete: if false;
+
+      // Alert pictures (only exist while the owner allows sharing)
+      match /snapshots/{eventId} {
+        allow read: if isMember(homeId);
+        allow write: if false;
+      }
+
+      match /cameras/{cameraId} {
+        allow read: if isMember(homeId);
+        allow write: if false;
+      }
+
+      match /events/{eventId} {
+        allow read: if isMember(homeId);
+        // "Seen it" button in the app
+        allow update: if isMember(homeId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['acknowledged', 'acknowledged_by', 'acknowledged_at'])
+          && request.resource.data.acknowledged == true
+          && request.resource.data.acknowledged_by == request.auth.uid;
+        allow create, delete: if false;
+      }
+    }
+  }
+}
