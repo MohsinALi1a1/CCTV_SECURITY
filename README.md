@@ -9,6 +9,8 @@ Local AI for home cameras. Everything (video, faces, events) stays on this machi
 | Mosquitto | MQTT messages between the parts | localhost:1883 |
 | Event engine | Zone + face rules → HIGH / LOW / INFO alerts, SQLite history, camera watchdog | `event_engine/` |
 
+**Installing on a new PC?** Follow [docs/SETUP_NEW_PC.md](docs/SETUP_NEW_PC.md) step by step.
+
 ## Start
 
 ```powershell
